@@ -42,3 +42,5 @@ obj-$(CONFIG_ARM_CHARLCD)	+= arm-charlcd.o
 obj-$(CONFIG_PCH_PHUB)		+= pch_phub.o
 obj-y				+= ti-st/
 obj-$(CONFIG_AB8500_PWM)	+= ab8500-pwm.o
+obj-$(CONFIG_THINKPAD_EC)       += thinkpad_ec.o
+obj-$(CONFIG_TP_SMAPI)          += tp_smapi.o

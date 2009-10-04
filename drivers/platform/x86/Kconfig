@@ -371,6 +371,7 @@ config THINKPAD_ACPI_HOTKEY_POLL
 config SENSORS_HDAPS
 	tristate "Thinkpad Hard Drive Active Protection System (hdaps)"
 	depends on INPUT && X86
+	select THINKPAD_EC
 	select INPUT_POLLDEV
 	default n
 	help
