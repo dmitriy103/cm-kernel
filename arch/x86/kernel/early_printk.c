@@ -779,7 +779,7 @@ next_debug_port:
 	return -1;
 }
 
-static int __init early_dbgp_init(char *s)
+int __init early_dbgp_init(char *s)
 {
 	u32 debug_port, bar, offset;
 	u32 bus, slot, func, cap;
@@ -878,7 +878,7 @@ static void early_dbgp_write(struct console *con, const char *str, u32 n)
 	}
 }
 
-static struct console early_dbgp_console = {
+struct console early_dbgp_console = {
 	.name =		"earlydbg",
 	.write =	early_dbgp_write,
 	.flags =	CON_PRINTBUFFER,
