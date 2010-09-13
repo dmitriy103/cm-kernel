@@ -375,7 +375,7 @@ static int bravo_ts_power(int on)
 	} else {
 		gpio_set_value(BRAVO_GPIO_TP_LS_EN, 0);
 		gpio_set_value(BRAVO_GPIO_TP_EN, 0);
-		usleep(50);
+		udelay(50);
 	}
 
 	return 0;
@@ -411,8 +411,8 @@ static struct regulator_init_data tps65023_data[5] = {
 	{
 		.constraints = {
 			.name = "dcdc1", /* VREG_MSMC2_1V29 */
-			.min_uV = 950000,
-			.max_uV = 1275000,
+			.min_uV = 975000,
+			.max_uV = 1300000,
 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
 		},
 		.consumer_supplies = tps65023_dcdc1_supplies,
@@ -827,7 +827,7 @@ static struct curcial_oj_platform_data bravo_oj_data = {
         .mdelay_time = 0,
         .normal_th = 8,
         .xy_ratio = 15,
-        .interval = 200,
+        .interval = 20,
         .swap           = false,
         .ap_code = false,
         .x              = 1,
