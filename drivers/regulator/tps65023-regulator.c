@@ -418,9 +418,10 @@ int tps65023_set_dcdc1_level(struct regulator_dev *dev, int mvolts)
 {
 	int val;
 	int ret;
-	struct tps_pmic *tps = rdev_get_drvdata(dev);
+	struct tps_pmic *tps;
 
 	if (!tpsclient) {
+		tps = rdev_get_drvdata(dev);
 		tpsclient = tps->client;
 	}
 
