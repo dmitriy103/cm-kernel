@@ -545,7 +545,7 @@ unsigned long acpuclk_power_collapse(int from_idle)
 
 unsigned long acpuclk_get_wfi_rate(void)
 {
-	return drv_state.wait_for_irq_khz * 1000;
+	return drv_state.wait_for_irq_khz;
 }
 
 unsigned long acpuclk_wait_for_irq(void)
