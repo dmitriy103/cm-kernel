@@ -258,7 +258,7 @@ static void scpll_set_freq(uint32_t lval)
 			;
 
 		/* completion bit is not reliable for SHOT switch */
-		udelay(25);
+		udelay(15);
 	}
 
 	/* write the new L val and switch mode */
@@ -349,6 +349,8 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 	/* convert to KHz */
 	rate /= 1000;
 
+	DEBUG("acpuclk_set_rate(%d,%d)\n", (int) rate, for_power_collapse);
+
 	if (rate == 0 || rate == cur->acpu_khz)
 		return 0;
 
@@ -376,7 +378,7 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		}
 #endif
 		/* Increase VDD if needed. */
- 		if (next->vdd > cur->vdd) {
+		if (next->vdd > cur->vdd) {
 			rc = acpuclk_set_vdd_level(next->vdd);
 			if (rc) {
 /*				pr_err("acpuclock: Unable to increase ACPU VDD.\n"); */
@@ -412,13 +414,12 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 
 	drv_state.current_speed = next;
 
-	spin_unlock_irqrestore(&acpu_lock, flags);
-
 	if (reason == SETRATE_CPUFREQ || reason == SETRATE_PC) {
 		if (cur->axiclk_khz != next->axiclk_khz)
 			clk_set_rate(drv_state.clk_ebi1, next->axiclk_khz * 1000);
 	}
 
+	spin_unlock_irqrestore(&acpu_lock, flags);
 	if (reason == SETRATE_CPUFREQ) {
 #ifdef CONFIG_MSM_CPU_AVS
 		/* notify avs after changing frequency */
@@ -438,7 +439,7 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		mutex_unlock(&drv_state.lock);
 	}
 
-	return rc;
+	return 0;
 }
 
 static unsigned __init acpuclk_find_speed(void)
@@ -538,9 +539,10 @@ unsigned long acpuclk_power_collapse(int from_idle)
 	int ret = acpuclk_get_rate();
 	enum setrate_reason reason = (from_idle) ? SETRATE_PC_IDLE : SETRATE_PC;
 
+	ret *= 1000;
 	if (ret > drv_state.power_collapse_khz)
-		acpuclk_set_rate(drv_state.power_collapse_khz * 1000, reason);
-	return ret * 1000;
+		acpuclk_set_rate(drv_state.power_collapse_khz, reason);
+	return ret;
 }
 
 unsigned long acpuclk_get_wfi_rate(void)
@@ -551,9 +553,10 @@ unsigned long acpuclk_get_wfi_rate(void)
 unsigned long acpuclk_wait_for_irq(void)
 {
 	int ret = acpuclk_get_rate();
+	ret *= 1000;
 	if (ret > drv_state.wait_for_irq_khz)
-		acpuclk_set_rate(drv_state.wait_for_irq_khz * 1000, SETRATE_SWFI);
-	return ret * 1000;
+		acpuclk_set_rate(drv_state.wait_for_irq_khz, SETRATE_SWFI);
+	return ret;
 }
 
 #ifdef CONFIG_MSM_CPU_AVS
