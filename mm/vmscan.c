@@ -2378,7 +2378,7 @@ loop_again:
 			 */
 			if (sc.order > PAGE_ALLOC_COSTLY_ORDER)
 				compact_zone_order(zone, sc.order,
-						sc.gfp_mask);
+						sc.gfp_mask, false);
 
 			if (!zone_watermark_ok(zone, order,
 					high_wmark_pages(zone), end_zone, 0)) {
