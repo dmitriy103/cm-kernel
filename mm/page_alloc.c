@@ -2102,6 +2102,19 @@ rebalance:
 		/* Wait for some write requests to complete then retry */
 		wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
 		goto rebalance;
+	} else {
+		/*
+		 * High-order allocations do not necessarily loop after
+		 * direct reclaim and reclaim/compaction depends on compaction
+		 * being called after reclaim so call directly if necessary
+		 */
+		page = __alloc_pages_direct_compact(gfp_mask, order,
+					zonelist, high_zoneidx,
+					nodemask,
+					alloc_flags, preferred_zone,
+					migratetype, &did_some_progress);
+		if (page)
+			goto got_pg;
 	}
 
 nopage:
