@@ -150,7 +150,6 @@ static int dbg_proc_read(char *buffer, char **start, off_t offset,
 #else
 #define dbgpr(...) do {} while (0)
 #endif
->>>>>>> 499d34a... sync cpufreq_interactive bits with cm-2635-exp: https://github.com/cyanogen/cm-kernel-exp/commit/bfb836df34d54bc256532ea9f7675b4b9cc1d3d0 and https://github.com/cyanogen/cm-kernel-exp/commit/1c8b2115ac02ff0780829c49e23be1804144986e
 
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		unsigned int event);
