@@ -13,16 +13,15 @@ static void autogroup_init(struct task_struct *init_task)
 {
 	autogroup_default.tg = &init_task_group;
 	kref_init(&autogroup_default.kref);
-	init_task->signal->autogroup = &autogroup_default;
+	init_task->autogroup = &autogroup_default;
 }
 
 static inline void autogroup_destroy(struct kref *kref)
 {
 	struct autogroup *ag = container_of(kref, struct autogroup, kref);
-	struct task_group *tg = ag->tg;
 
+	sched_destroy_group(ag->tg);
 	kfree(ag);
-	sched_destroy_group(tg);
 }
 
 static inline void autogroup_kref_put(struct autogroup *ag)
@@ -59,84 +58,96 @@ out_fail:
 	return autogroup_kref_get(&autogroup_default);
 }
 
-static inline bool
-task_wants_autogroup(struct task_struct *p, struct task_group *tg)
+static void autogroup_fork(struct task_struct *p)
 {
-	if (tg != &root_task_group)
-		return false;
-
-	if (p->sched_class != &fair_sched_class)
-		return false;
-
-	if (p->flags & PF_EXITING)
-		return false;
-
-	return true;
+	p->autogroup = autogroup_kref_get(current->autogroup);
 }
 
-static inline struct task_group *
-autogroup_task_group(struct task_struct *p, struct task_group *tg)
+static inline void
+autogroup_task_group(struct task_struct *p, struct task_group **tg)
 {
-	int enabled = ACCESS_ONCE(sysctl_sched_autogroup_enabled);
+	int enabled = sysctl_sched_autogroup_enabled;
 
-	if (enabled && task_wants_autogroup(p, tg))
-		return p->signal->autogroup->tg;
+	enabled &= (*tg == &root_task_group);
+	enabled &= (p->sched_class == &fair_sched_class);
+	enabled &= (!(p->flags & PF_EXITING));
 
-	return tg;
+	if (enabled)
+		*tg = p->autogroup->tg;
 }
 
 static void
-autogroup_move_group(struct task_struct *p, struct autogroup *ag)
+autogroup_move_task(struct task_struct *p, struct autogroup *ag)
 {
 	struct autogroup *prev;
-	struct task_struct *t;
+	struct rq *rq;
+	unsigned long flags;
 
-	prev = p->signal->autogroup;
-	if (prev == ag)
+	rq = task_rq_lock(p, &flags);
+	prev = p->autogroup;
+	if (prev == ag) {
+		task_rq_unlock(rq, &flags);
 		return;
-
-	p->signal->autogroup = autogroup_kref_get(ag);
-	sched_move_task(p);
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(t, &p->thread_group, thread_group) {
-		sched_move_task(t);
 	}
-	rcu_read_unlock();
+
+	p->autogroup = autogroup_kref_get(ag);
+	__sched_move_task(p, rq);
+	task_rq_unlock(rq, &flags);
 
 	autogroup_kref_put(prev);
 }
 
-/* Must be called with siglock held */
 void sched_autogroup_create_attach(struct task_struct *p)
 {
-	struct autogroup *ag = autogroup_create();
+	autogroup_move_task(p, autogroup_create());
 
-	autogroup_move_group(p, ag);
-	/* drop extra refrence added by autogroup_create() */
-	autogroup_kref_put(ag);
+	/*
+	 * Correct freshly allocated group's refcount.
+	 * Move takes a reference on destination, but
+	 * create already initialized refcount to 1.
+	 */
+	if (p->autogroup != &autogroup_default)
+		autogroup_kref_put(p->autogroup);
 }
 EXPORT_SYMBOL(sched_autogroup_create_attach);
 
-/* Must be called with siglock held.  Currently has no users */
-void sched_autogroup_detach(struct task_struct *p)
+void sched_autogroup_detatch(struct task_struct *p)
 {
-	autogroup_move_group(p, &autogroup_default);
+	autogroup_move_task(p, &autogroup_default);
 }
-EXPORT_SYMBOL(sched_autogroup_detach);
+EXPORT_SYMBOL(sched_autogroup_detatch);
 
-void sched_autogroup_fork(struct signal_struct *sig)
+void sched_autogroup_exit(struct task_struct *p)
 {
-	struct sighand_struct *sighand = current->sighand;
-
-	spin_lock(&sighand->siglock);
-	sig->autogroup = autogroup_kref_get(current->signal->autogroup);
-	spin_unlock(&sighand->siglock);
+	autogroup_kref_put(p->autogroup);
 }
 
-void sched_autogroup_exit(struct signal_struct *sig)
+int sched_autogroup_handler(struct ctl_table *table, int write,
+		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	autogroup_kref_put(sig->autogroup);
+	struct task_struct *p, *t;
+	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+
+	if (ret || !write)
+		return ret;
+
+	/*
+	 * Exclude cgroup, task group and task create/destroy
+	 * during global classification.
+	 */
+	cgroup_lock();
+	spin_lock(&task_group_lock);
+	read_lock(&tasklist_lock);
+
+	do_each_thread(p, t) {
+		sched_move_task(t);
+	} while_each_thread(p, t);
+
+	read_unlock(&tasklist_lock);
+	spin_unlock(&task_group_lock);
+	cgroup_unlock();
+
+	return 0;
 }
 
 static int __init setup_autogroup(char *str)
