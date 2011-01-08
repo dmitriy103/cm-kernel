@@ -546,7 +546,7 @@ static void hw3d_vma_open(struct vm_area_struct *vma)
 	 *
 	 * For now, just pull the mapping. The user shouldn't be forking
 	 * and using it anyway. */
-	zap_page_range(vma, vma->vm_start, vma->vm_end - vma->vm_start, NULL);
+	zap_page_range(vma, vma->vm_start, vma->vm_end - vma->vm_start, NULL, true);
 }
 
 static void hw3d_vma_close(struct vm_area_struct *vma)
