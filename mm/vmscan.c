@@ -2569,6 +2569,8 @@ static int kswapd(void *p)
 
 			order = pgdat->kswapd_max_order;
 			classzone_idx = pgdat->classzone_idx;
+			pgdat->kswapd_max_order = 0;
+			pgdat->classzone_idx = MAX_NR_ZONES - 1;
 		}
 		finish_wait(&pgdat->kswapd_wait, &wait);
 
