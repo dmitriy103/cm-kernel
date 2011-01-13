@@ -763,7 +763,7 @@ rcu_unlock:
 
 	/* Drop an anon_vma reference if we took one */
 	if (anon_vma)
-		drop_anon_vma(anon_vma);
+		put_anon_vma(anon_vma);
 
 	if (rcu_locked)
 		rcu_read_unlock();
@@ -848,7 +848,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 
 		if (page_mapped(hpage)) {
 			anon_vma = page_anon_vma(hpage);
-			atomic_inc(&anon_vma->external_refcount);
+			atomic_inc(&anon_vma->refcount);
 		}
 	}
 
@@ -860,12 +860,12 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 	if (rc)
 		remove_migration_ptes(hpage, hpage);
 
-	if (anon_vma && atomic_dec_and_lock(&anon_vma->external_refcount,
+	if (anon_vma && atomic_dec_and_mutex_lock(&anon_vma->refcount,
 					    &anon_vma->lock)) {
 		int empty = list_empty(&anon_vma->head);
-		spin_unlock(&anon_vma->lock);
+		mutex_unlock(&anon_vma->lock);
 		if (empty)
-			anon_vma_free(anon_vma);
+			put_anon_vma(anon_vma);
 	}
 
 	if (rcu_locked)
