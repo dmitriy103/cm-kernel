@@ -848,7 +848,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 		remove_migration_ptes(hpage, hpage);
 
 	if (anon_vma)
-		drop_anon_vma(anon_vma);
+		put_anon_vma(anon_vma);
 out:
 	unlock_page(hpage);
 
