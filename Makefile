@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 37
-EXTRAVERSION =
-NAME = Flesh-Eating Bats with Fangs
+EXTRAVERSION = -zen0
+NAME = Inanimate Antler
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -422,7 +422,7 @@ endif
 no-dot-config-targets := clean mrproper distclean \
 			 cscope TAGS tags help %docs check% coccicheck \
 			 include/linux/version.h headers_% \
-			 kernelversion %src-pkg
+			 kernelrelease %src-pkg
 
 config-targets := 0
 mixed-targets  := 0
@@ -1423,8 +1423,8 @@ checkstack:
 	$(PERL) $(src)/scripts/checkstack.pl $(CHECKSTACK_ARCH)
 
 kernelrelease:
-	@echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
-
+	$(if $(wildcard include/config/kernel.release), $(Q)echo $(KERNELRELEASE), \
+	$(error kernelrelease not valid - run 'make prepare' to update it))
 kernelversion:
 	@echo $(KERNELVERSION)
 
