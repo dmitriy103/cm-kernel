@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 37
-EXTRAVERSION =
-NAME = Flesh-Eating Bats with Fangs
+EXTRAVERSION = -zen0
+NAME = Inanimate Antler
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
