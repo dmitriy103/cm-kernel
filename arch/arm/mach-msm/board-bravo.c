@@ -416,11 +416,11 @@ static struct regulator_init_data tps65023_data[5] = {
 	{
 		.constraints = {
 			.name = "dcdc1", /* VREG_MSMC2_1V29 */
-			.min_uV = 975000,
+			.min_uV = 875000,
 #ifdef CONFIG_JESUS_PHONE
 			.max_uV = 1350000,
 #else
-			.max_uV = 1275000,
+			.max_uV = 1300000,
 #endif
 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
 		},
@@ -1124,9 +1124,9 @@ static struct msm_acpu_clock_platform_data bravo_clock_data = {
 	.acpu_switch_time_us	= 20,
 	.max_speed_delta_khz	= 256000,
 	.vdd_switch_time_us	= 62,
-	.power_collapse_khz	= 245000,
-	.wait_for_irq_khz	= 245000,
-	.mpll_khz		= 245000
+	.power_collapse_khz	= 128000,
+	.wait_for_irq_khz	= 128000,
+	.mpll_khz		= 128000
 };
 
 static struct msm_acpu_clock_platform_data bravo_cdma_clock_data = {
