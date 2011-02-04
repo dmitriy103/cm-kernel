@@ -68,7 +68,6 @@
 #include <linux/bootmem.h>
 #include <linux/ftrace.h>
 #include <linux/slab.h>
-#include <linux/zentune.h>
 
 #include <asm/tlb.h>
 #include <asm/unistd.h>
@@ -131,30 +130,14 @@
  * Value is in ms and set to a minimum of 6ms. Scales with number of cpus.
  * Tunable via /proc interface.
  */
-#if defined(CONFIG_ZEN_DEFAULT)
-int rr_interval __read_mostly = rr_interval_default;
-#elif defined(CONFIG_ZEN_SERVER)
-int rr_interval __read_mostly = rr_interval_server;
-#elif defined(CONFIG_ZEN_DESKTOP)
-int rr_interval __read_mostly = rr_interval_desktop;
-#elif defined(CONFIG_ZEN_CUSTOM)
-int rr_interval __read_mostly = rr_interval_custom;
-#endif
+int rr_interval __read_mostly = 6;
 
 /*
  * sched_iso_cpu - sysctl which determines the cpu percentage SCHED_ISO tasks
  * are allowed to run five seconds as real time tasks. This is the total over
  * all online cpus.
  */
-#if defined(CONFIG_ZEN_DEFAULT)
-int sched_iso_cpu __read_mostly = sched_iso_cpu_default;
-#elif defined(CONFIG_ZEN_SERVER)
-int sched_iso_cpu __read_mostly = sched_iso_cpu_server;
-#elif defined(CONFIG_ZEN_DESKTOP)
-int sched_iso_cpu __read_mostly = sched_iso_cpu_desktop;
-#elif defined(CONFIG_ZEN_CUSTOM)
-int sched_iso_cpu __read_mostly = sched_iso_cpu_custom;
-#endif
+int sched_iso_cpu __read_mostly = 70;
 
 /*
  * The relative length of deadline for each priority(nice) level.
@@ -574,26 +557,6 @@ static inline void __task_grq_unlock(void)
 	__releases(grq.lock)
 {
 	grq_unlock();
-}
-
-/*
- * Look for any tasks *anywhere* that are running nice 0 or better. We do
- * this lockless for overhead reasons since the occasional wrong result
- * is harmless.
- */
-int above_background_load(void)
-{
-	struct task_struct *cpu_curr;
-	unsigned long cpu;
-
-	for_each_online_cpu(cpu) {
-		cpu_curr = cpu_rq(cpu)->curr;
-		if (unlikely(!cpu_curr))
-			continue;
-		if (PRIO_TO_NICE(cpu_curr->static_prio) < 1)
-			return 1;
-	}
-	return 0;
 }
 
 #ifndef __ARCH_WANT_UNLOCKED_CTXSW
@@ -4376,9 +4339,9 @@ void __sched io_schedule(void)
 
 	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
-	current->sched_in_iowait = 1;
+	current->in_iowait = 1;
 	schedule();
-	current->sched_in_iowait = 0;
+	current->in_iowait = 0;
 	atomic_dec(&rq->nr_iowait);
 	delayacct_blkio_end();
 }
@@ -4391,9 +4354,9 @@ long __sched io_schedule_timeout(long timeout)
 
 	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
-	current->sched_in_iowait = 1;
+	current->in_iowait = 1;
 	ret = schedule_timeout(timeout);
-	current->sched_in_iowait = 0;
+	current->in_iowait = 0;
 	atomic_dec(&rq->nr_iowait);
 	delayacct_blkio_end();
 	return ret;
@@ -4855,23 +4818,6 @@ void sched_idle_next(void)
 	grq_unlock_irqrestore(&flags);
 }
 
-/*
- * Ensures that the idle task is using init_mm right before its cpu goes
- * offline.
- */
-void idle_task_exit(void)
-{
-	struct mm_struct *mm = current->active_mm;
-
-	BUG_ON(cpu_online(smp_processor_id()));
-
-	if (mm != &init_mm)
-		switch_mm(mm, &init_mm, current);
-	mmdrop(mm);
-}
-
-#endif /* CONFIG_HOTPLUG_CPU */
-
 void sched_set_stop_task(int cpu, struct task_struct *stop)
 {
 	struct sched_param stop_param = { .sched_priority = STOP_PRIO };
@@ -4900,6 +4846,23 @@ void sched_set_stop_task(int cpu, struct task_struct *stop)
 		sched_setscheduler_nocheck(old_stop, SCHED_FIFO, &start_param);
 	}
 }
+
+/*
+ * Ensures that the idle task is using init_mm right before its cpu goes
+ * offline.
+ */
+void idle_task_exit(void)
+{
+	struct mm_struct *mm = current->active_mm;
+
+	BUG_ON(cpu_online(smp_processor_id()));
+
+	if (mm != &init_mm)
+		switch_mm(mm, &init_mm, current);
+	mmdrop(mm);
+}
+
+#endif /* CONFIG_HOTPLUG_CPU */
 
 #if defined(CONFIG_SCHED_DEBUG) && defined(CONFIG_SYSCTL)
 

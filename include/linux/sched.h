@@ -38,9 +38,9 @@
 #define SCHED_BATCH		3
 /* SCHED_ISO: Implemented on BFS only */
 #define SCHED_IDLE		5
-#define SCHED_IDLEPRIO		SCHED_IDLE
 #ifdef CONFIG_SCHED_BFS
 #define SCHED_ISO		4
+#define SCHED_IDLEPRIO		SCHED_IDLE
 #define SCHED_MAX		(SCHED_IDLEPRIO)
 #define SCHED_RANGE(policy)	((policy) <= SCHED_MAX)
 #endif
@@ -514,8 +514,6 @@ struct thread_group_cputimer {
 	spinlock_t lock;
 };
 
-struct autogroup;
-
 /*
  * NOTE! "signal_struct" does not have it's own
  * locking, because a shared signal_struct always
@@ -583,9 +581,6 @@ struct signal_struct {
 
 	struct tty_struct *tty; /* NULL if no tty */
 
-#ifdef CONFIG_SCHED_AUTOGROUP
-	struct autogroup *autogroup;
-#endif
 	/*
 	 * Cumulative resource counters for dead threads in the group,
 	 * and for reaped dead child processes forked by this group.
@@ -1274,10 +1269,11 @@ struct task_struct {
 	unsigned did_exec:1;
 	unsigned in_execve:1;	/* Tell the LSMs that the process is doing an
 				 * execve */
+	unsigned in_iowait:1;
 
-	unsigned sched_in_iowait:1;		/* Called io_schedule() */
-	unsigned sched_reset_on_fork:1;		/* Revert to default
-						 * priority/policy on fork */
+
+	/* Revert to default priority/policy when forking */
+	unsigned sched_reset_on_fork:1;
 
 	pid_t pid;
 	pid_t tgid;
@@ -1497,14 +1493,6 @@ struct task_struct {
 	int make_it_fail;
 #endif
 	struct prop_local_single dirties;
-	/*
-	 * when (nr_dirtied >= nr_dirtied_pause), it's time to call
-	 * balance_dirty_pages() for some dirty throttling pause
-	 */
-	int nr_dirtied;
-	int nr_dirtied_pause;
-	unsigned long paused_when;	/* start of a write-and-pause period */
-
 #ifdef CONFIG_LATENCYTOP
 	int latency_record_count;
 	struct latency_record latency_record[LT_SAVECOUNT];
@@ -1548,7 +1536,6 @@ struct task_struct {
 #endif
 };
 
-
 #ifdef CONFIG_SCHED_BFS
 extern int grunqueue_is_locked(void);
 extern void grq_unlock_wait(void);
@@ -1571,7 +1558,6 @@ static inline int iso_task(struct task_struct *p)
 	return (p->policy == SCHED_ISO);
 }
 extern void remove_cpu(unsigned long cpu);
-extern int above_background_load(void);
 #else /* CFS */
 extern int runqueue_is_locked(int cpu);
 #define tsk_seruntime(t)	((t)->se.sum_exec_runtime)
@@ -1594,12 +1580,6 @@ static inline int iso_task(struct task_struct *p)
 
 static inline void remove_cpu(unsigned long cpu)
 {
-}
-
-/* Anyone feel like implementing this? */
-static inline int above_background_load(void)
-{
-	return 1;
 }
 #endif /* CONFIG_SCHED_BFS */
 
@@ -2032,24 +2012,6 @@ int sched_rt_handler(struct ctl_table *table, int write,
 		loff_t *ppos);
 
 extern unsigned int sysctl_sched_compat_yield;
-
-#ifdef CONFIG_SCHED_AUTOGROUP
-extern unsigned int sysctl_sched_autogroup_enabled;
-
-extern void sched_autogroup_create_attach(struct task_struct *p);
-extern void sched_autogroup_detach(struct task_struct *p);
-extern void sched_autogroup_fork(struct signal_struct *sig);
-extern void sched_autogroup_exit(struct signal_struct *sig);
-#ifdef CONFIG_PROC_FS
-extern void proc_sched_autogroup_show_task(struct task_struct *p, struct seq_file *m);
-extern int proc_sched_autogroup_set_nice(struct task_struct *p, int *nice);
-#endif
-#else
-static inline void sched_autogroup_create_attach(struct task_struct *p) { }
-static inline void sched_autogroup_detach(struct task_struct *p) { }
-static inline void sched_autogroup_fork(struct signal_struct *sig) { }
-static inline void sched_autogroup_exit(struct signal_struct *sig) { }
-#endif
 
 #ifdef CONFIG_RT_MUTEXES
 extern int rt_mutex_getprio(struct task_struct *p);
