@@ -99,28 +99,14 @@ struct clkctl_acpu_speed {
   int		max_vdd;
 };
 
+#ifndef MAX
+#define MAX(A,B)	(A>B?A:B)
+#endif // !ndef MAX
 
 struct clkctl_acpu_speed acpu_vdd_tbl[] = {
-<<<<<<< HEAD
-	{  19200, VOLTAGE_MIN, 975 },
-	{ 128000, VOLTAGE_MIN, 975 },
-	{ 245000, VOLTAGE_MIN, 1000 },
-	{ 256000, VOLTAGE_MIN, 1000 },
-	{ 384000, VOLTAGE_MIN, 1025 },
-	{ 422400, VOLTAGE_MIN, 1050 },
-	{ 460800, VOLTAGE_MIN, 1050 },
-	{ 499200, VOLTAGE_MIN, 1075 },
-	{ 537600, VOLTAGE_MIN, 1075 },
-	{ 576000, VOLTAGE_MIN, 1100 },
-	{ 614400, VOLTAGE_MIN, 1100 },
-	{ 652800, VOLTAGE_MIN, 1125 },
-	{ 691200, VOLTAGE_MIN, 1150 },
-	{ 729600, VOLTAGE_MIN, 1175 },
-	{ 768000, VOLTAGE_MIN, 1200 },
-=======
-  {  19200, VOLTAGE_MIN_START, 975 },
-  { 128000, VOLTAGE_MIN_START, 975 },
-  { 245000, VOLTAGE_MIN_START, 1000 },
+	{  19200, VOLTAGE_MIN_START, 975 },
+	{ 128000, VOLTAGE_MIN_START, 975 },
+	{ 245000, VOLTAGE_MIN_START, 1000 },
 	{ 256000, VOLTAGE_MIN_START, 1000 },
 	{ 384000, VOLTAGE_MIN_START, 1025 },
  	{ 422400, VOLTAGE_MIN_START, 1050 },
@@ -133,7 +119,6 @@ struct clkctl_acpu_speed acpu_vdd_tbl[] = {
 	{ 691200, MAX(VOLTAGE_MIN_START,975), 1150 },
 	{ 729600, MAX(VOLTAGE_MIN_START,975), 1175 },
 	{ 768000, MAX(VOLTAGE_MIN_START,975), 1200 },
->>>>>>> 6532ad2... Added interface for on the fly voltage modification for HAVS
 	{ 806400, 1175, 1225 },
 	{ 844800, 1200, 1250 },
 	{ 883200, 1200, 1250 },
@@ -317,13 +302,8 @@ static int avs_set_target_voltage(int freq_idx, bool update_table)
 
 	new_voltage = avs_get_target_voltage(freq_idx, update_table);
 	if (avs_state.vdd != new_voltage) {
-<<<<<<< HEAD
-		AVSDEBUG("AVS setting V to %d mV @%d MHz\n",
-			new_voltage, acpu_vdd_tbl[freq_idx].acpu_khz / 1000);
-=======
 	  /*AVSDEBUG*/
 	  pr_info("AVS setting V to %d mV @%d MHz\n", new_voltage, acpu_vdd_tbl[freq_idx].acpu_khz / 1000);
->>>>>>> 6532ad2... Added interface for on the fly voltage modification for HAVS
 		rc = avs_state.set_vdd(new_voltage);
 		while (rc && ctr) {
 			rc = avs_state.set_vdd(new_voltage);
