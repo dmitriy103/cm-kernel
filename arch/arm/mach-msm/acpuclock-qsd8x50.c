@@ -29,6 +29,9 @@
 #include "acpuclock.h"
 #include "avs.h"
 #include "proc_comm.h"
+#ifdef CONFIG_CPU_FREQ_VDD_LEVELS
+#include "board-bravo.h"
+#endif
 
 #if 0
 #define DEBUG(x...) pr_info(x)
@@ -120,6 +123,8 @@ struct clkctl_acpu_speed *acpu_stby = &acpu_freq_tbl[1];
 
 struct clkctl_acpu_speed *acpu_mpll = &acpu_freq_tbl[1];
 
+
+
 #ifdef CONFIG_CPU_FREQ_TABLE
 static struct cpufreq_frequency_table freq_table[ARRAY_SIZE(acpu_freq_tbl)];
 
@@ -188,6 +193,43 @@ static DEFINE_SPINLOCK(acpu_lock);
 #define PLLMODE_STEP_CAL	6
 #define PLLMODE_NORMAL		7
 #define PLLMODE_MASK		7
+
+#if defined(CONFIG_CPU_FREQ_VDD_LEVELS) && !defined(CONFIG_MSM_CPU_AVS)
+ssize_t acpuclk_get_vdd_levels_str(char *buf)
+{
+	int i, len = 0;
+	if (buf)
+	{
+	  mutex_lock(&drv_state.lock);
+	  for (i = 0; acpu_freq_tbl[i].acpu_khz; i++) 
+	    {
+	      if (freq_table[i].frequency != CPUFREQ_ENTRY_INVALID)
+		len += sprintf(buf + len, "%8u: %4d\n", acpu_freq_tbl[i].acpu_khz, acpu_freq_tbl[i].vdd);
+	    }
+	  mutex_unlock(&drv_state.lock);
+	}
+	return len;
+}
+
+void acpuclk_set_vdd(unsigned acpu_khz, int vdd)
+{
+	int i;
+	vdd = vdd / 25 * 25;	//! regulator only accepts multiples of 25 (mV)
+	mutex_lock(&drv_state.lock);
+	for (i = 0; acpu_freq_tbl[i].acpu_khz; i++)
+	{
+		if (freq_table[i].frequency != CPUFREQ_ENTRY_INVALID)
+		{
+			if (acpu_khz == 0)
+				acpu_freq_tbl[i].vdd = min(max((acpu_freq_tbl[i].vdd + vdd), BRAVO_TPS65023_MIN_UV_MV), BRAVO_TPS65023_MAX_UV_MV);
+			else if (acpu_freq_tbl[i].acpu_khz == acpu_khz)
+				acpu_freq_tbl[i].vdd = min(max(vdd, BRAVO_TPS65023_MIN_UV_MV), BRAVO_TPS65023_MAX_UV_MV);
+		}
+	}
+	mutex_unlock(&drv_state.lock);
+}
+
+#endif // CONFIG_CPU_FREQ_VDD_LEVELS
 
 static void scpll_power_down(void)
 {
@@ -294,6 +336,7 @@ static void select_clock(unsigned src, unsigned config)
 
 static int acpu_set_vdd(int vdd)
 {
+  //pr_info("acpu_set_vdd(%d)\n", vdd);
 	if (!drv_state.regulator || IS_ERR(drv_state.regulator)) {
 		drv_state.regulator = regulator_get(NULL, "acpu_vcore");
 		if (IS_ERR(drv_state.regulator)) {
@@ -339,6 +382,7 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		return 0;
 
 	next = acpu_freq_tbl;
+
 	for (;;) {
 		if (next->acpu_khz == rate)
 			break;
