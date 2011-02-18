@@ -7,13 +7,13 @@ obj-$(CONFIG_ARCH_MSM_SCORPION) += idle-v7.o
 obj-$(CONFIG_ARCH_MSM_SCORPION) += arch-init-scorpion.o
 obj-$(CONFIG_ARCH_QSD8X50) += acpuclock-qsd8x50.o
 obj-$(CONFIG_ARCH_MSM7X30) += acpuclock-7x30.o
-obj-$(CONFIG_MSM_CPU_AVS) += avs.o avs_hw.o
 obj-y += clock.o clock-pcom.o
 obj-y += gpio.o generic_gpio.o
 obj-y += nand_partitions.o
 obj-y += drv_callback.o
 obj-y += htc_board_tags.o
-
+obj-$(CONFIG_MSM_CPU_AVS) += avs.o
+obj-$(CONFIG_MSM_AVS_HW) += avs_hw.o
 obj-$(CONFIG_ARCH_QSD8X50) += sirc.o
 obj-$(CONFIG_MSM_FIQ_SUPPORT) += fiq_glue.o
 obj-$(CONFIG_MSM_SMD) += smd.o smd_debug.o
