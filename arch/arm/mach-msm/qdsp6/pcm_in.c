@@ -133,6 +133,11 @@ static long q6_in_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		channel_count = config.channel_count;
 		buffer_size = config.buffer_size;
 		break;
+#else
+                pcm->sample_rate = config.sample_rate;
+                pcm->channel_count = config.channel_count;
+                pcm->buffer_size = config.buffer_size;
+                break;
 #endif
 	}
 
