@@ -451,6 +451,7 @@ out:
 static ssize_t show_##file_name				\
 (struct cpufreq_policy *policy, char *buf)		\
 {							\
+  /*  printk("show_one(%s, %s)=>%u\n", #file_name, #object, policy->object); */ \
 	return sprintf(buf, "%u\n", policy->object);	\
 }
 
@@ -474,7 +475,9 @@ static ssize_t store_##file_name					\
 	unsigned int ret = -EINVAL;					\
 	struct cpufreq_policy new_policy;				\
 									\
+	/*printk("stor_one(%s, %s):%s\n", #file_name, #object, buf);*/	\
 	ret = cpufreq_get_policy(&new_policy, policy->cpu);		\
+	/*printk("new_policy->%s=%d\n", #object, new_policy.object);*/	\
 	if (ret)							\
 		return -EINVAL;						\
 									\
@@ -490,7 +493,6 @@ static ssize_t store_##file_name					\
 
 store_one(scaling_min_freq, min);
 store_one(scaling_max_freq, max);
-
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
  */
@@ -649,6 +651,142 @@ static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
 	return policy->governor->show_setspeed(policy, buf);
 }
 
+#ifdef CONFIG_CPU_FREQ_VDD_LEVELS
+#ifdef CONFIG_MSM_CPU_AVS
+extern ssize_t acpuclk_get_vdd_levels_havs_str(char *buf);
+static ssize_t show_vdd_levels_havs(struct cpufreq_policy *policy, char *buf)
+{
+	return acpuclk_get_vdd_levels_havs_str(buf);
+}
+
+int	atoi(char *string) {
+  int	retCode=0;
+  int	sign=1;
+
+  while (*string != 0) {
+    if (*string=='+') {
+      sign=1;
+    } else if (*string=='-') {
+      sign=-1;
+    } else if ((*string>='0') && (*string<='9')) {
+      retCode *= 10;
+      retCode += *string-'0';
+    } else {
+      break;
+    }
+    string++;
+  }
+
+  retCode *= sign;
+
+  return (retCode);
+}
+
+#define	SEPARATORS	"\t :"
+extern void acpuclk_set_vdd_havs(unsigned acpu_khz, int min_vdd, int max_vdd);
+static ssize_t store_vdd_levels_havs(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+  char	*fields[3]={0};
+  int	f, nbFields=0;
+
+  fields[0]=(char *)buf;
+  for (f=0; (f<count) && (nbFields<3); f++) {
+    if (strchr(SEPARATORS, buf[f]) != NULL) {
+      // new field
+      nbFields++;
+      while ((strchr(SEPARATORS, buf[f])!=NULL) && (f<count)) {
+	f++;
+      }
+      fields[nbFields]=(char *)&buf[f];
+    }
+  }
+  if (f==count) {
+    nbFields++;
+  }
+
+  dprintk("nbFields=%d\n", nbFields);
+  for (f=0; f<nbFields; f++) {
+    dprintk("Field%d=%s - val=%d\n", f, fields[f], atoi(fields[f]));
+  }
+
+  // 2 possibilities. Either we have 2 fields containing +/- values.
+  // Either we have 3 fields containing the frequency, new min, and new max
+  if (nbFields==2) {
+    acpuclk_set_vdd_havs(0, atoi(fields[0]), atoi(fields[1]));
+  } else if (nbFields==3) {
+    acpuclk_set_vdd_havs(atoi(fields[0]), atoi(fields[1]), atoi(fields[2]));
+  }
+
+  return count;
+}
+#else
+extern ssize_t acpuclk_get_vdd_levels_str(char *buf);
+static ssize_t show_vdd_levels(struct cpufreq_policy *policy, char *buf)
+{
+	return acpuclk_get_vdd_levels_str(buf);
+}
+
+extern void acpuclk_set_vdd(unsigned acpu_khz, int vdd);
+static ssize_t store_vdd_levels(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+	int i = 0, j;
+	int pair[2] = { 0, 0 };
+	int sign = 0;
+
+	if (count < 1)
+		return 0;
+
+	if (buf[0] == '-')
+	{
+		sign = -1;
+		i++;
+	}
+	else if (buf[0] == '+')
+	{
+		sign = 1;
+		i++;
+	}
+
+	for (j = 0; i < count; i++)
+	{
+		char c = buf[i];
+		if ((c >= '0') && (c <= '9'))
+		{
+			pair[j] *= 10;
+			pair[j] += (c - '0');
+		}
+		else if ((c == ' ') || (c == '\t'))
+		{
+			if (pair[j] != 0)
+			{
+				j++;
+				if ((sign != 0) || (j > 1))
+					break;
+			}
+		}
+		else
+			break;
+	}
+
+	if (sign != 0)
+	{
+		if (pair[0] > 0)
+			acpuclk_set_vdd(0, sign * pair[0]);
+	}
+	else
+	{
+		if ((pair[0] > 0) && (pair[1] > 0))
+			acpuclk_set_vdd((unsigned)pair[0], pair[1]);
+		else
+			return -EINVAL;
+	}
+
+	return count;
+}
+#endif // AVS
+#endif // VDD_LEVELS
+
+
 /**
  * show_scaling_driver - show the current cpufreq HW/BIOS limitation
  */
@@ -678,6 +816,13 @@ cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
+#ifdef CONFIG_CPU_FREQ_VDD_LEVELS
+#ifdef CONFIG_MSM_CPU_AVS
+cpufreq_freq_attr_rw(vdd_levels_havs);
+#else
+cpufreq_freq_attr_rw(vdd_levels);
+#endif // AVS
+#endif // VDD_LEVELS
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -691,6 +836,13 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+#ifdef CONFIG_CPU_FREQ_VDD_LEVELS
+#ifdef CONFIG_MSM_CPU_AVS
+	&vdd_levels_havs.attr,
+#else
+	&vdd_levels.attr,
+#endif // AVS
+#endif // VDD_LEVELS
 	NULL
 };
 
@@ -1034,7 +1186,9 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	/* call driver. From then on the cpufreq must be able
 	 * to accept all calls to ->verify and ->setpolicy for this CPU
 	 */
+	//printk("*** before cpufreq_driver->init()\n");
 	ret = cpufreq_driver->init(policy);
+	//printk("*** after cpufreq_driver->init()\n");
 	if (ret) {
 		dprintk("initialization failed\n");
 		goto err_unlock_policy;
@@ -1042,10 +1196,14 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	policy->user_policy.min = policy->min;
 	policy->user_policy.max = policy->max;
 
+	//	printk("1-policy->min=%d, policy->max=%d\n", policy->min, policy->max);
+
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 				     CPUFREQ_START, policy);
 
+	//printk("2-policy->min=%d, policy->max=%d\n", policy->min, policy->max);
 	ret = cpufreq_add_dev_policy(cpu, policy, sys_dev);
+	//printk("3-policy->min=%d, policy->max=%d\n", policy->min, policy->max);
 	if (ret) {
 		if (ret > 0)
 			/* This is a managed cpu, symlink created,
@@ -1054,16 +1212,21 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 		goto err_unlock_policy;
 	}
 
+	//printk("4-policy->min=%d, policy->max=%d\n", policy->min, policy->max);
 	ret = cpufreq_add_dev_interface(cpu, policy, sys_dev);
+	//printk("5-policy->min=%d, policy->max=%d\n", policy->min, policy->max);
 	if (ret)
 		goto err_out_unregister;
 
+	//printk("6-policy->min=%d, policy->max=%d\n", policy->min, policy->max);
 	unlock_policy_rwsem_write(cpu);
 
+	//printk("7-policy->min=%d, policy->max=%d\n", policy->min, policy->max);
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
 	module_put(cpufreq_driver->owner);
 	dprintk("initialization complete\n");
 	cpufreq_debug_enable_ratelimit();
+	//printk("8-policy->min=%d, policy->max=%d\n", policy->min, policy->max);
 
 	return 0;
 
