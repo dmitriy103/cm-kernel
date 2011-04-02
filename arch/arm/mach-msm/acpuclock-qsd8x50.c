@@ -118,6 +118,7 @@ struct clkctl_acpu_speed acpu_freq_tbl[] = {
 #ifdef	USE_EXTREMEOVERCLOCKING
 	{ 1152000, CCTL(CLK_TCXO, 1), 		SRC_SCPLL, 0x1E, 0, 1300, 128000 }, 
 	{ 1190400, CCTL(CLK_TCXO, 1), 		SRC_SCPLL, 0x1F, 0, 1300, 128000 }, 
+#endif
 	{ 0 },
 };
 
