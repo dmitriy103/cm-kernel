@@ -30,6 +30,9 @@
 #include "acpuclock.h"
 #include "avs.h"
 #include "proc_comm.h"
+#ifdef CONFIG_CPU_FREQ_VDD_LEVELS
+#include "board-bravo.h"
+#endif
 
 #if 0
 #define DEBUG(x...) pr_info(x)
@@ -88,8 +91,8 @@ struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{  19200, CCTL(CLK_TCXO, 1),		SRC_RAW, 0, 0, 975, 14000 },
 	{ 128000, CCTL(CLK_TCXO, 1),		SRC_AXI, 0, 0, 975, 14000 },
 	{ 245000, CCTL(CLK_MODEM_PLL, 1),	SRC_RAW, 0, 0, 1000, 29000 },
-	/* Work around for acpu resume hung, GPLL is turn off by arm9 */
-	/*{ 256000, CCTL(CLK_GLOBAL_PLL, 3),	SRC_RAW, 0, 0, 1000, 29000 },*/
+	/* Work arround for acpu resume hung, GPLL is turn off by arm9 */
+      /*{ 256000, CCTL(CLK_GLOBAL_PLL, 3),      SRC_RAW, 0, 0, 1000, 29000 },*/
 	{ 384000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0A, 0, 1025, 58000 },
 	{ 422400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0B, 0, 1050, 117000 },
 	{ 460800, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0C, 0, 1050, 117000 },
@@ -107,9 +110,14 @@ struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 921600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x18, 0, 1275, 128000 },
 	{ 960000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x19, 0, 1275, 128000 },
 	{ 998400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x1A, 0, 1275, 128000 },
-        { 1036800, CCTL(CLK_TCXO, 1),           SRC_SCPLL, 0x1B, 0, 1275, 128000 },
-        { 1075200, CCTL(CLK_TCXO, 1),           SRC_SCPLL, 0x1C, 0, 1275, 128000 },
-        { 1113600, CCTL(CLK_TCXO, 1),           SRC_SCPLL, 0x1D, 0, 1275, 128000 },
+#ifdef	USE_OVERCLOCKING
+	{ 1036800, CCTL(CLK_TCXO, 1), 		SRC_SCPLL, 0x1B, 0, 1275, 128000 },
+	{ 1075200, CCTL(CLK_TCXO, 1), 		SRC_SCPLL, 0x1C, 0, 1275, 128000 },
+	{ 1113600, CCTL(CLK_TCXO, 1), 		SRC_SCPLL, 0x1D, 0, 1275, 128000 },
+#endif
+#ifdef	USE_EXTREMEOVERCLOCKING
+	{ 1152000, CCTL(CLK_TCXO, 1), 		SRC_SCPLL, 0x1E, 0, 1300, 128000 }, 
+	{ 1190400, CCTL(CLK_TCXO, 1), 		SRC_SCPLL, 0x1F, 0, 1300, 128000 }, 
 	{ 0 },
 };
 
@@ -123,6 +131,8 @@ struct clkctl_acpu_speed *acpu_stby = &acpu_freq_tbl[1];
 				 ((x)->clk_sel == acpu_stby->clk_sel))
 
 struct clkctl_acpu_speed *acpu_mpll = &acpu_freq_tbl[1];
+
+
 
 #ifdef CONFIG_CPU_FREQ_TABLE
 static struct cpufreq_frequency_table freq_table[ARRAY_SIZE(acpu_freq_tbl)];
@@ -190,6 +200,43 @@ static DEFINE_SPINLOCK(acpu_lock);
 #define PLLMODE_STEP_CAL	6
 #define PLLMODE_NORMAL		7
 #define PLLMODE_MASK		7
+
+#if defined(CONFIG_CPU_FREQ_VDD_LEVELS) && !defined(CONFIG_MSM_CPU_AVS)
+ssize_t acpuclk_get_vdd_levels_str(char *buf)
+{
+	int i, len = 0;
+	if (buf)
+	{
+	  mutex_lock(&drv_state.lock);
+	  for (i = 0; acpu_freq_tbl[i].acpu_khz; i++) 
+	    {
+	      if (freq_table[i].frequency != CPUFREQ_ENTRY_INVALID)
+		len += sprintf(buf + len, "%8u: %4d\n", acpu_freq_tbl[i].acpu_khz, acpu_freq_tbl[i].vdd);
+	    }
+	  mutex_unlock(&drv_state.lock);
+	}
+	return len;
+}
+
+void acpuclk_set_vdd(unsigned acpu_khz, int vdd)
+{
+	int i;
+	vdd = vdd / 25 * 25;	//! regulator only accepts multiples of 25 (mV)
+	mutex_lock(&drv_state.lock);
+	for (i = 0; acpu_freq_tbl[i].acpu_khz; i++)
+	{
+		if (freq_table[i].frequency != CPUFREQ_ENTRY_INVALID)
+		{
+			if (acpu_khz == 0)
+				acpu_freq_tbl[i].vdd = min(max((acpu_freq_tbl[i].vdd + vdd), BRAVO_TPS65023_MIN_UV_MV), BRAVO_TPS65023_MAX_UV_MV);
+			else if (acpu_freq_tbl[i].acpu_khz == acpu_khz)
+				acpu_freq_tbl[i].vdd = min(max(vdd, BRAVO_TPS65023_MIN_UV_MV), BRAVO_TPS65023_MAX_UV_MV);
+		}
+	}
+	mutex_unlock(&drv_state.lock);
+}
+
+#endif // CONFIG_CPU_FREQ_VDD_LEVELS
 
 static void scpll_power_down(void)
 {

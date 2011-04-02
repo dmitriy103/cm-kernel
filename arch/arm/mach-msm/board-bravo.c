@@ -416,8 +416,8 @@ static struct regulator_init_data tps65023_data[5] = {
 	{
 		.constraints = {
 			.name = "dcdc1", /* VREG_MSMC2_1V29 */
-			.min_uV = 975000,
-			.max_uV = 1275000,
+			.min_uV = BRAVO_TPS65023_MIN_UV_MV * 1000,
+			.max_uV = BRAVO_TPS65023_MAX_UV_MV * 1000,
 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
 		},
 		.consumer_supplies = tps65023_dcdc1_supplies,
@@ -1121,9 +1121,9 @@ static struct msm_acpu_clock_platform_data bravo_clock_data = {
 	.acpu_switch_time_us	= 20,
 	.max_speed_delta_khz	= 256000,
 	.vdd_switch_time_us	= 62,
-	.power_collapse_khz	= 245000,
-	.wait_for_irq_khz	= 245000,
-	.mpll_khz		= 245000
+	.power_collapse_khz	= 128000,
+	.wait_for_irq_khz	= 128000,
+	.mpll_khz		= 128000
 };
 
 static struct msm_acpu_clock_platform_data bravo_cdma_clock_data = {
