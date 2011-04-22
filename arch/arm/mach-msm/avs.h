@@ -36,7 +36,7 @@
 #include "board-bravo.h"
 
 #define	USE_OVERCLOCKING 1
-//#define	USE_EXTREMEOVERCLOCKING	1
+#define	USE_EXTREMEOVERCLOCKING	1
 
 #define VOLTAGE_MIN  BRAVO_TPS65023_MIN_UV_MV /* mV */
 #define VOLTAGE_MAX  BRAVO_TPS65023_MAX_UV_MV
@@ -76,7 +76,7 @@ static inline void avs_set_tscsr(u32 to_tscsr) {}
 static inline void avs_disable(void) {}
 #endif
 
-/*#define AVSDEBUG(x...) pr_info("AVS: " x);*/
+//#define AVSDEBUG(x...) pr_info("AVS: " x);
 #define AVSDEBUG(...)
 
 #define AVS_DISABLE(cpu) do {			\
